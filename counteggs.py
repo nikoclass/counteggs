@@ -23,6 +23,9 @@ CANNY_MAX = 120
 #Fixed parameters (default 300)
 IMAGE_WIDTH = 300
 
+X = 0
+Y = 1
+
 # import the necessary packages
 import imutils
 import cv2
@@ -33,6 +36,7 @@ import numpy as np
 from os import listdir
 from os.path import isfile, join
 
+from imutils.video import VideoStream
 
 
 # construct the argument parser and parse the arguments
@@ -42,6 +46,8 @@ ap.add_argument("-g", "--graphics", required=False, default = "false",
 	help="show graphics (default false)")
 ap.add_argument("-t", "--trainDir", required=False, default = "",
 	help="trainDir (default empty)")
+ap.add_argument("-v", "--video", required=False, default = "false",
+	help="capture from video (default false)")
 args = vars(ap.parse_args())
 
 
@@ -54,6 +60,9 @@ if args["trainDir"] != "":
 	train = True
 	show_graphics = False
 
+fromVideo = False
+if args["video"] != "false":
+	fromVideo = True
 
 
 def detectShape(image):
@@ -101,7 +110,69 @@ def detectShape(image):
 
 
 
-if train == False:
+
+def getRoundness(countour):
+	mean = [0, 0]
+	N = len(countour)
+	for p in countour:
+		mean[X] = mean[X] + p[0][X]
+		mean[Y] = mean[Y] + p[0][Y]
+	mean[X] = mean[X] / N
+	mean[Y] = mean[Y] / N
+
+
+	distanceMean = 0
+	for p in countour:
+		distanceMean = distanceMean + math.sqrt(math.pow(mean[X] - p[0][X], 2) + math.pow(mean[Y] - p[0][Y], 2))
+	distanceMean = distanceMean / N
+
+	variance = 0
+	for p in countour:
+		variance = variance + math.fabs(math.sqrt(math.pow(mean[X] - p[0][X], 2) + math.pow(mean[Y] - p[0][Y], 2)) - distanceMean)
+
+	variance = variance / N
+	if distanceMean > 0:
+		return variance / distanceMean
+	else:
+		return variance
+
+
+if fromVideo == True:
+
+	vs = VideoStream(src=1).start()
+
+	IMAGE_WIDTH *= 2
+
+	while True:
+		# read the frame from the camera and send it to the server
+		frame = vs.read()
+		image = imutils.resize(frame, width=IMAGE_WIDTH)
+		
+		cnts = detectShape(image)
+		eggs = 0
+
+		# loop over the contours
+		for c in cnts:
+			# draw each contour on the output image with a 3px thick purple
+			# outline, then display the output contours one at a time
+			if getRoundness(c) > 0.1:
+				cv2.drawContours(image, [c], -1, (24, 0, 15), 2)
+			else:
+				eggs = eggs + 1
+				cv2.drawContours(image, [c], -1, (240, 0, 159), 2)
+			
+
+		# draw the total number of contours found in purple
+		text = "{} eggs".format(eggs)
+		cv2.putText(image, text, (10, 25),  cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+			(255, 255, 255), 2)
+
+
+		cv2.imshow("frame", image)
+		if cv2.waitKey(1) >= 27:
+			exit()
+
+elif train == False:
 	# load the input image and show its dimensions, keeping in mind that
 	# images are represented as a multi-dimensional NumPy array with
 	# shape no. rows (height) x no. columns (width) x no. channels (depth)
@@ -120,14 +191,14 @@ if train == False:
 
 	cnts = detectShape(image)
 
+
 	output = original.copy()
 	# loop over the contours
 	if show_graphics:
-		for c in cnts:
-			# draw each contour on the output image with a 3px thick purple
-			# outline, then display the output contours one at a time
-			cv2.drawContours(output, [c], -1, (240, 0, 159), 2)
-			cv2.imshow("Contours", output)
+		# draw each contour on the output image with a 3px thick purple
+		# outline, then display the output contours one at a time
+		cv2.drawContours(output, cnts, -1, (240, 0, 159), 2)
+		cv2.imshow("Contours", output)
 
 
 	# draw the total number of contours found in purple
