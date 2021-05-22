@@ -33,6 +33,8 @@ import time
 import argparse
 import math
 import numpy as np
+import json
+import sys
 from os import listdir
 from os.path import isfile, join
 
@@ -137,6 +139,38 @@ def getRoundness(countour):
 		return variance
 
 
+
+
+def saveParametersToFile(filename):
+	data = {}
+	data['blur'] = BLUR
+	data['erode'] = ERODE
+	data['dilate'] = DILATE
+	data['canny_min'] = CANNY_MIN
+	data['canny_max'] = CANNY_MAX
+	data['image_width'] = IMAGE_WIDTH
+	with open(filename, 'w') as outfile:
+		json.dump(data, outfile, indent=4)
+
+
+
+class Logger: 
+	def __init__(self, filename):
+		self.console = sys.stdout
+		self.file = open(filename, 'w')
+ 
+	def write(self, message):
+		self.console.write(message)
+		self.file.write(message)
+ 
+	def flush(self):
+		self.console.flush()
+		self.file.flush()
+
+
+
+
+
 if fromVideo == True:
 
 	vs = VideoStream(src=1).start()
@@ -213,20 +247,27 @@ elif train == False:
 	print(text)
 
 else:
-	print("training...")
+
+	sys.stdout = Logger(args["trainDir"] + "/log.txt")
+
+	print("Reading files...")
 
 	filenames = [f for f in listdir(args["trainDir"]) if isfile(join(args["trainDir"], f))]
 	realCount = []
 	for filename in filenames:
-		realCount.append(int(filename.strip(".jpgpng")))
+		if filename != "config.json" and filename != "log.txt":
+			print(filename)
+			realCount.append(int(filename.strip(".jpgpng")))
 
 	images = []
 	for filename in filenames:
-		image = cv2.imread(args["trainDir"] + "/" + filename)
-		image = imutils.resize(image, width=IMAGE_WIDTH)
-		image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-		images.append(image)
+		if filename != "config.json" and filename != "log.txt":
+			image = cv2.imread(args["trainDir"] + "/" + filename)
+			image = imutils.resize(image, width=IMAGE_WIDTH)
+			image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+			images.append(image)
 
+	print("Training...")
 
 	bestSum = 9999999999999999
 	bestBLUR = 0
@@ -290,6 +331,8 @@ else:
 							sumError = math.floor(100 * math.fabs(totalReal - sumCount) / totalReal)
 							print("Best Parameters: BLUR: {}, ERODE: {}, DILATE: {}, CANNY_MIN: {}, CANNY_MAX: {} - diffSum: {} - absolute error: {}% - sum error: {}%"
 								.format(blur,erode, dilate, canny_min, canny_max, diffSum, error, sumError))
+
+							saveParametersToFile(args["trainDir"] + "/config.json")
 		
 						if bestSum == 0:
 							exit()
