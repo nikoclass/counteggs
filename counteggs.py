@@ -1,4 +1,12 @@
 #!/usr/bin/python3
+
+#Usage for training:
+#python3 counteggs.py --trainDir nuevas_imagenes/
+
+#Usage for detection:
+#python3 counteggs.py --image all_sin_marron/3.jpg -g false
+
+
 # Changing the following parameters will alter the detection
 
 # These are optimal parameters
@@ -13,11 +21,11 @@
 
 
 # Trained parameters
-BLUR = 7
-ERODE = 5
-DILATE = 3
-CANNY_MIN = 100
-CANNY_MAX = 120
+BLUR = 3
+ERODE = 0
+DILATE = 2
+CANNY_MIN = 10
+CANNY_MAX = 210
 
 
 #Fixed parameters (default 300)
